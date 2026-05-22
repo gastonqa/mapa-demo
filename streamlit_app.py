@@ -109,7 +109,7 @@ st.header("Mapa Interactivo")
 m = folium.Map(location=[40.4637, -3.7492], zoom_start=6, tiles="CartoDB positron")
 
 # =========================================================================
-# LEYENDA 1 (IZQUIERDA): Distribuidoras con sus colores asociados en HTML
+# SECCIÓN 1: Distribuidoras con sus colores (Se mostrarán en el control principal)
 # =========================================================================
 mask_layers = {
     'Endesa': folium.FeatureGroup(
@@ -153,17 +153,15 @@ for idx, row in filtered_df.iterrows():
 for layer in mask_layers.values():
     layer.add_to(m)
 
-# Creamos el primer control de capas exclusivo para las Distribuidoras (Arriba Izquierda)
-folium.LayerControl(position='topleft', collapsed=False).add_to(m)
-
 
 # =========================================================================
-# LEYENDA 2 (DERECHA): Mostrar/Ocultar Puntos y Calificaciones Energéticas
+# SECCIÓN 2: Marcadores y subcapas de Calificación Energética
 # =========================================================================
-# Creamos un grupo principal para los puntos
-pins_layer = folium.FeatureGroup(name="📍 Mostrar/Ocultar Puntos", show=True)
+# NOTA: Para evitar el error de Folium, creamos un "Sub-Mapa" o Grupo Maestro 
+# para alojar la segunda leyenda de Calificaciones.
+sub_mapa_puntos = folium.plugins.FeatureGroupSubGroup(m, "📍 Mostrar/Ocultar Puntos", show=True)
+sub_mapa_puntos.add_to(m)
 
-# Creamos subcapas independientes por cada Calificación Energética para poder filtrarlas en la leyenda
 rating_layers = {
     'A': folium.FeatureGroup(name='🟢 Calificación A', show=True),
     'B': folium.FeatureGroup(name='🟢 Calificación B', show=True),
@@ -218,19 +216,19 @@ for idx, row in filtered_df.iterrows():
             tooltip=row.get('Centre', 'Centro Asepeyo')
         )
         
-        # El marcador se añade tanto a la capa de "Puntos" como a su capa de "Calificación" correspondiente
-        marker.add_to(pins_layer)
+        # El marcador se añade al subgrupo de control y a su respectiva capa de calificación
+        marker.add_to(sub_mapa_puntos)
         marker.add_to(rating_layers[rating_val])
 
-# Añadimos la capa general de puntos al mapa
-pins_layer.add_to(m)
-
-# Añadimos las capas de calificaciones que tengan datos activos al mapa
+# Añadimos al mapa únicamente las capas de calificaciones que tengan datos reales
 for rat, layer in rating_layers.items():
     if rat in filtered_df['Energy Rating'].dropna().unique() or (rat == 'Pendiente' and filtered_df['Energy Rating'].isna().any()):
         layer.add_to(m)
 
-# Creamos la SEGUNDA leyenda (Arriba Derecha) para controlar los puntos y sus notas energéticas
-folium.LayerControl(position='topright', collapsed=False).add_to(m)
+# =========================================================================
+# SOLUCIÓN AL ERROR: Un único LayerControl unificado pero estructurado por subgrupos
+# =========================================================================
+folium.LayerControl(position='topleft', collapsed=False).add_to(m)
 
+# Renderizado final en Streamlit
 st_folium(m, width=1200, height=650, returned_objects=[])
